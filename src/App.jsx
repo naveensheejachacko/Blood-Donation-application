@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from './components/Layout.jsx';
 import { Filters } from './components/Filters.jsx';
 import { DonorList } from './components/DonorList.jsx';
-import { AdminLogin } from './components/AdminLogin.jsx';
-import { AdminRegister } from './components/AdminRegister.jsx';
+import { AdminAuthPage } from './components/AdminAuthPage.jsx';
 import { AdminDonors } from './components/AdminDonors.jsx';
 import { fetchDonors } from './utils/donorsService.js';
 import { filterDonors } from './utils/filters.js';
@@ -193,20 +192,8 @@ export default function App() {
           </>
         )}
 
-        {view === 'admin-login' && (
-          <section className="admin-section" aria-label="Admin login">
-            <div className="admin-auth-layout">
-              <AdminLogin onAuthenticated={setAdminSession} />
-            </div>
-          </section>
-        )}
-
-        {view === 'admin-register' && (
-          <section className="admin-section" aria-label="Admin register">
-            <div className="admin-auth-layout">
-              <AdminRegister />
-            </div>
-          </section>
+        {(view === 'admin-login' || view === 'admin-register') && (
+          <AdminAuthPage onAuthenticated={setAdminSession} />
         )}
 
         {view === 'admin' && (

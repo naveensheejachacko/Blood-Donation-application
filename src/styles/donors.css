@@ -228,13 +228,39 @@
   margin-top: 1rem;
 }
 
+.admin-auth-page-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.admin-auth-page-subtitle {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
 .admin-auth-layout {
   display: grid;
   gap: 1rem;
 }
 
+.admin-auth-layout.admin-auth-same-page {
+  grid-template-columns: 1fr;
+}
+
+.admin-auth-block {
+  padding: 1rem;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
 @media (min-width: 640px) {
   .admin-auth-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-auth-layout.admin-auth-same-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
