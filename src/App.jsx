@@ -16,8 +16,12 @@ const INITIAL_FILTER_VALUE = 'all';
 function getInitialView() {
   const hash = window.location.hash;
   if (hash === '#/admin') return 'admin';
-  if (hash === '#/blood-kochi-login') return 'admin-login';
-  if (hash === '#/blood-kochi-register') return 'admin-register';
+  if (hash === '#/admin/login') return 'admin-login';
+  // Legacy redirects
+  if (hash === '#/blood-kochi-login' || hash === '#/blood-kochi-register') {
+    window.location.hash = '#/admin/login';
+    return 'admin-login';
+  }
   return 'public';
 }
 
@@ -122,10 +126,10 @@ export default function App() {
       const hash = window.location.hash;
       if (hash === '#/admin') {
         setView('admin');
-      } else if (hash === '#/blood-kochi-login') {
+      } else if (hash === '#/admin/login') {
         setView('admin-login');
-      } else if (hash === '#/blood-kochi-register') {
-        setView('admin-register');
+      } else if (hash === '#/blood-kochi-login' || hash === '#/blood-kochi-register') {
+        window.location.hash = '#/admin/login';
       } else {
         setView('public');
       }
