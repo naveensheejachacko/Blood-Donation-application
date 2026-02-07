@@ -74,7 +74,7 @@ export default function App() {
     };
   }, []);
 
-  // Load admin profile (role, blocked flag) for the logged-in user
+  // Load admin profile (role, blocked flag). If none, create pending row so super admin can approve.
   useEffect(() => {
     const loadProfile = async () => {
       if (!adminSession?.user) {
@@ -88,11 +88,30 @@ export default function App() {
         .eq('user_id', adminSession.user.id)
         .maybeSingle();
 
-      if (!error) {
+      if (!error && data) {
         setAdminProfile(data);
-      } else {
-        setAdminProfile(null);
+        return;
       }
+
+      if (!error && !data) {
+        // No profile: create pending row (RLS allows self-insert with role=admin, is_blocked=true)
+        const email = adminSession.user.email ?? '';
+        await supabase.from('admin_profiles').insert({
+          user_id: adminSession.user.id,
+          email,
+          role: 'admin',
+          is_blocked: true,
+        });
+        const { data: after } = await supabase
+          .from('admin_profiles')
+          .select('role, is_blocked')
+          .eq('user_id', adminSession.user.id)
+          .maybeSingle();
+        setAdminProfile(after ?? null);
+        return;
+      }
+
+      setAdminProfile(null);
     };
 
     void loadProfile();
@@ -198,12 +217,23 @@ export default function App() {
 
         {view === 'admin' && (
           <section className="admin-section" aria-label="Admin portal">
-            {adminSession ? (
-              <AdminDonors isSuperAdmin={isSuperAdmin} />
-            ) : (
+            {!adminSession ? (
               <p className="admin-message">
                 You must sign in via the admin login URL before accessing the
                 admin portal.
+              </p>
+            ) : adminProfile?.is_blocked ? (
+              <p className="admin-message">
+                {adminProfile.role === 'super_admin'
+                  ? 'Your account is blocked. Contact another super admin.'
+                  : 'Your account is pending approval. A super admin must approve you in Manage admins before you can use the portal.'}
+              </p>
+            ) : adminProfile ? (
+              <AdminDonors isSuperAdmin={isSuperAdmin} />
+            ) : (
+              <p className="admin-message">
+                Your account must be added by a super admin in Manage admins
+                before you can use the portal.
               </p>
             )}
           </section>
