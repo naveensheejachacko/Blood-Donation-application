@@ -34,8 +34,8 @@ blood donation app/
     │   ├── Filters.jsx     # Public: blood group & district filters
     │   ├── DonorList.jsx   # Public: loading/error/list of DonorCards
     │   ├── DonorCard.jsx   # Public: single donor card (photo, name, blood, district, phone, weight, last donated)
-    │   ├── AdminLogin.jsx  # Admin login form (#/blood-kochi-login)
-    │   ├── AdminRegister.jsx # Admin registration (#/blood-kochi-register)
+    │   ├── AdminLogin.jsx  # Admin login form
+    │   ├── AdminRegister.jsx # Admin registration (same page as login at #/admin/login)
     │   ├── AdminDonors.jsx # Admin portal: Add/Edit, All donors, Manage admins (tabs)
     │   └── AdminUsers.jsx  # Super-admin only: list admins, block/unblock, make super/regular
     ├── utils/
@@ -82,7 +82,8 @@ create table public.donors (
   phone text not null,
   weight numeric,
   photo_url text,
-  last_donated date
+  last_donated date,
+  available_to_donate boolean  -- null = auto from last_donated (56 days); true/false = admin override
 );
 
 alter table public.donors enable row level security;
@@ -94,11 +95,14 @@ create policy "Admins manage donors"
 on public.donors for all to authenticated using (true) with check (true);
 ```
 
-Optional: add `weight` if not present:
+Optional: add columns if not present:
 
 ```sql
 alter table public.donors add column if not exists weight numeric;
+alter table public.donors add column if not exists available_to_donate boolean;
 ```
+
+**Availability:** If `available_to_donate` is null, the app treats the donor as available when `last_donated` is null or at least 56 days ago (Indian standard). Admins can override by setting true/false.
 
 ### 2. Admin profiles (roles + block)
 
@@ -130,6 +134,15 @@ with check (
     where p.user_id = auth.uid() and p.role = 'super_admin' and p.is_blocked = false
   )
 );
+
+-- New registrants can create a single "pending" row so a super admin can approve them
+create policy "Users insert own pending admin row"
+on public.admin_profiles for insert to authenticated
+with check (
+  user_id = auth.uid()
+  and role = 'admin'
+  and is_blocked = true
+);
 ```
 
 After the first user signs up via the app, add them as super admin (replace with real `user_id` and `email` from Auth or from `admin_profiles` after one insert):
@@ -139,7 +152,7 @@ insert into public.admin_profiles (user_id, email, role, is_blocked)
 values ('<user_id_from_auth_users>', 'superadmin@example.com', 'super_admin', false);
 ```
 
-New admins can register at `/#/blood-kochi-register`. A super admin must then add a row in `admin_profiles` for them (or you can provide an “invite” flow that inserts into `admin_profiles`; the app currently only reads/updates existing rows).
+New admins register at `/#/admin/login`. On first visit to the admin portal, the app inserts a pending row in `admin_profiles`; a super admin must **Unblock** them in Manage admins before they can use the portal (or you can provide an “invite” flow that inserts into `admin_profiles` — see approval flow above).
 
 ### 3. Storage bucket (donor photos)
 
@@ -168,11 +181,10 @@ Update `src/utils/storage.js` so `DONOR_PHOTOS_BUCKET` matches your bucket id (e
 | URL / Hash              | Who can access        | Purpose |
 | ----------------------- | --------------------- | ------- |
 | `/` or `/#/`            | Everyone              | Public donor directory |
-| `/#/blood-kochi-login`  | Anyone (no link in UI) | Admin login |
-| `/#/blood-kochi-register` | Anyone (no link in UI) | Admin registration |
-| `/#/admin`              | Logged-in admins      | Admin portal (donors +, for super admin, admins) |
+| `/#/admin/login`       | Anyone (no link in UI) | Admin sign in & register (same page) |
+| `/#/admin`             | Logged-in admins       | Admin portal (donors +, for super admin, admins) |
 
-Admin and register URLs are “hidden” (no navigation links); only people who know the URL can open them. After login, the app redirects to `/#/admin`.
+Admin and register URLs are “hidden” (no navigation links); only people who know the URL can open it. Old hashes #/blood-kochi-login and #/blood-kochi-register redirect to #/admin/login. After login, the app redirects to `/#/admin`.
 
 ---
 
@@ -191,7 +203,7 @@ The app treats a user as super admin only if `admin_profiles.role = 'super_admin
 
 ## Admin Portal (/#/admin)
 
-After logging in at `/#/blood-kochi-login`, the user lands on the admin portal. A **Logout** button appears in the header.
+After logging in at `/#/admin/login`, the user lands on the admin portal. A **Logout** button appears in the header.
 
 ### Tabs (sidebar)
 

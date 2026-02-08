@@ -16,7 +16,17 @@
 }
 
 .layout-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   background-color: transparent;
+}
+
+.layout-header-actions {
+  display: flex;
+  align-items: center;
 }
 
 .site-title {

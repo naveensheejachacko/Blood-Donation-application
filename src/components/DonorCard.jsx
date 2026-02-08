@@ -1,7 +1,14 @@
 import { useState } from 'react';
+import { isAvailableToDonate, getNextEligibleDate } from '../utils/donorsService.js';
 
 const FALLBACK_PHOTO_URL =
   'https://via.placeholder.com/320x200.png?text=Donor+Photo';
+
+function formatDisplayDate(isoDate) {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return [d, m, y].join('/');
+}
 
 export function DonorCard({ donor }) {
   const {
@@ -18,6 +25,8 @@ export function DonorCard({ donor }) {
   const lastDonatedLabel = lastDonated
     ? `Last donated: ${lastDonated}`
     : 'Last donation date not provided';
+  const available = isAvailableToDonate(donor);
+  const nextEligible = getNextEligibleDate(donor);
 
   return (
     <article className="donor-card">
@@ -84,6 +93,19 @@ export function DonorCard({ donor }) {
         ) : null}
         <p className="donor-card-detail donor-card-detail-subtle">
           {lastDonatedLabel}
+        </p>
+        <p
+          className={
+            available
+              ? 'donor-card-detail donor-card-available'
+              : 'donor-card-detail donor-card-not-available'
+          }
+        >
+          {available
+            ? 'Available for donation'
+            : nextEligible
+              ? `Eligible after ${formatDisplayDate(nextEligible)}`
+              : 'Not available for donation'}
         </p>
       </div>
     </article>

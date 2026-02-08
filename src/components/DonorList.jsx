@@ -1,6 +1,15 @@
 import { DonorCard } from './DonorCard.jsx';
 
-export function DonorList({ donors, status, error, onRetry }) {
+export function DonorList({
+  donors,
+  status,
+  error,
+  onRetry,
+  page = 1,
+  pageSize = 12,
+  totalCount = 0,
+  onPageChange,
+}) {
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="donors-state">
@@ -41,12 +50,51 @@ export function DonorList({ donors, status, error, onRetry }) {
     );
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const from = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalCount);
+
   return (
-    <div className="donor-grid" data-count={donors.length}>
-      {donors.map((donor) => (
-        <DonorCard key={donor.id} donor={donor} />
-      ))}
-    </div>
+    <>
+      <div className="donor-grid" data-count={donors.length}>
+        {donors.map((donor) => (
+          <DonorCard key={donor.id} donor={donor} />
+        ))}
+      </div>
+      {totalPages > 1 && onPageChange && (
+        <nav
+          className="donors-pagination"
+          aria-label="Donor list pagination"
+        >
+          <p className="donors-pagination-summary">
+            Showing {from}–{to} of {totalCount}
+          </p>
+          <div className="donors-pagination-buttons">
+            <button
+              type="button"
+              className="donors-pagination-button"
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+              aria-label="Previous page"
+            >
+              Previous
+            </button>
+            <span className="donors-pagination-page">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="donors-pagination-button"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+              aria-label="Next page"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      )}
+    </>
   );
 }
 

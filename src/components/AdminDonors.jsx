@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
-import { fetchDonors } from '../utils/donorsService.js';
+import { fetchDonors, isAvailableToDonate, getNextEligibleDate } from '../utils/donorsService.js';
 import { BLOOD_GROUPS, KERALA_DISTRICTS } from '../utils/options.js';
 import { uploadDonorPhoto } from '../utils/storage.js';
 import { AdminUsers } from './AdminUsers.jsx';
@@ -25,6 +25,7 @@ export function AdminDonors({ isSuperAdmin }) {
     weight: '',
     photo_url: '',
     last_donated: '',
+    available_to_donate: 'auto', // 'auto' | 'yes' | 'no'
   });
 
   const load = async () => {
@@ -58,6 +59,7 @@ export function AdminDonors({ isSuperAdmin }) {
       weight: '',
       photo_url: '',
       last_donated: '',
+      available_to_donate: 'auto',
     });
     setActiveDonorId(null);
   };
@@ -74,6 +76,10 @@ export function AdminDonors({ isSuperAdmin }) {
       weight: form.weight ? Number(form.weight) : null,
       photo_url: form.photo_url || null,
       last_donated: form.last_donated || null,
+      available_to_donate:
+        form.available_to_donate === 'auto'
+          ? null
+          : form.available_to_donate === 'yes',
     };
 
     if (activeDonorId) {
@@ -143,6 +149,7 @@ export function AdminDonors({ isSuperAdmin }) {
 
   const handleSelectDonor = (donor) => {
     setActiveDonorId(donor.id);
+    const avail = donor.availableToDonate;
     setForm({
       name: donor.name,
       blood_group: donor.bloodGroup,
@@ -151,6 +158,8 @@ export function AdminDonors({ isSuperAdmin }) {
       weight: donor.weight ?? '',
       photo_url: donor.photoUrl ?? '',
       last_donated: donor.lastDonated ?? '',
+      available_to_donate:
+        avail === true ? 'yes' : avail === false ? 'no' : 'auto',
     });
   };
 
@@ -315,6 +324,19 @@ export function AdminDonors({ isSuperAdmin }) {
                       onChange={handleChange}
                     />
                   </div>
+                  <div className="admin-date-group">
+                    <span className="admin-date-label">Available to donate</span>
+                    <select
+                      className="admin-input"
+                      name="available_to_donate"
+                      value={form.available_to_donate}
+                      onChange={handleChange}
+                    >
+                      <option value="auto">Auto (from last donation date)</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
                   <div className="admin-submit-wrapper">
                     <button className="admin-button" type="submit">
                       {activeDonorId ? 'Update donor' : 'Add donor'}
@@ -392,6 +414,14 @@ export function AdminDonors({ isSuperAdmin }) {
                         <strong>{donor.name || 'Unnamed donor'}</strong>
                         <span className="admin-list-item-sub">
                           {donor.bloodGroup} · {donor.district}
+                          {isAvailableToDonate(donor)
+                            ? ' · Available'
+                            : (() => {
+                                const next = getNextEligibleDate(donor);
+                                return next
+                                  ? ` · Eligible after ${next.split('-').reverse().join('/')}`
+                                  : ' · Not available';
+                              })()}
                         </span>
                       </div>
                       <div className="admin-list-actions">

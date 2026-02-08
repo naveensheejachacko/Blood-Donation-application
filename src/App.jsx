@@ -4,14 +4,14 @@ import { Filters } from './components/Filters.jsx';
 import { DonorList } from './components/DonorList.jsx';
 import { AdminAuthPage } from './components/AdminAuthPage.jsx';
 import { AdminDonors } from './components/AdminDonors.jsx';
-import { fetchDonors } from './utils/donorsService.js';
-import { filterDonors } from './utils/filters.js';
+import { fetchDonors, fetchDonorsPage } from './utils/donorsService.js';
 import { BLOOD_GROUPS, KERALA_DISTRICTS } from './utils/options.js';
 import { supabase } from './utils/supabaseClient.js';
 import './styles/layout.css';
 import './styles/donors.css';
 
 const INITIAL_FILTER_VALUE = 'all';
+const DONORS_PAGE_SIZE = 20;
 
 function getInitialView() {
   const hash = window.location.hash;
@@ -27,6 +27,8 @@ function getInitialView() {
 
 export default function App() {
   const [donors, setDonors] = useState([]);
+  const [totalDonors, setTotalDonors] = useState(0);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
   const [error, setError] = useState(null);
   const [selectedBloodGroup, setSelectedBloodGroup] = useState(INITIAL_FILTER_VALUE);
@@ -40,14 +42,20 @@ export default function App() {
     setError(null);
 
     try {
-      const fetchedDonors = await fetchDonors();
+      const { donors: fetchedDonors, total } = await fetchDonorsPage({
+        page,
+        pageSize: DONORS_PAGE_SIZE,
+        bloodGroup: selectedBloodGroup,
+        district: selectedDistrict,
+      });
       setDonors(fetchedDonors);
+      setTotalDonors(total);
       setStatus('success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected error while loading donors.');
       setStatus('error');
     }
-  }, []);
+  }, [page, selectedBloodGroup, selectedDistrict]);
 
   useEffect(() => {
     void loadDonors();
@@ -142,18 +150,10 @@ export default function App() {
   const bloodGroupOptions = BLOOD_GROUPS;
   const districtOptions = KERALA_DISTRICTS;
 
-  const filteredDonors = useMemo(
-    () =>
-      filterDonors(donors, {
-        bloodGroup: selectedBloodGroup,
-        district: selectedDistrict,
-      }),
-    [donors, selectedBloodGroup, selectedDistrict],
-  );
-
   const handleResetFilters = () => {
     setSelectedBloodGroup(INITIAL_FILTER_VALUE);
     setSelectedDistrict(INITIAL_FILTER_VALUE);
+    setPage(1);
   };
 
   const handleLogout = async () => {
@@ -174,15 +174,22 @@ export default function App() {
       <header className="layout-header">
         <div className="layout-header-inner">
           <h1 className="site-title">Blood Donation Directory</h1>
-          {adminSession && (
-            <button
-              type="button"
-              className="logout-button"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          )}
+          <div className="layout-header-actions">
+            {view === 'public' && !adminSession && (
+              <a href="#/admin/login" className="admin-login-link">
+                Admin
+              </a>
+            )}
+            {adminSession && (
+              <button
+                type="button"
+                className="logout-button"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -195,8 +202,14 @@ export default function App() {
                 districtOptions={districtOptions}
                 selectedBloodGroup={selectedBloodGroup}
                 selectedDistrict={selectedDistrict}
-                onBloodGroupChange={setSelectedBloodGroup}
-                onDistrictChange={setSelectedDistrict}
+                onBloodGroupChange={(v) => {
+                  setSelectedBloodGroup(v);
+                  setPage(1);
+                }}
+                onDistrictChange={(v) => {
+                  setSelectedDistrict(v);
+                  setPage(1);
+                }}
                 onReset={handleResetFilters}
               />
             </section>
@@ -206,10 +219,14 @@ export default function App() {
               aria-label="List of blood donors"
             >
               <DonorList
-                donors={filteredDonors}
+                donors={donors}
                 status={status}
                 error={error}
                 onRetry={loadDonors}
+                page={page}
+                pageSize={DONORS_PAGE_SIZE}
+                totalCount={totalDonors}
+                onPageChange={setPage}
               />
             </section>
           </>
